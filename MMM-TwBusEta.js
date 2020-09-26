@@ -1,12 +1,5 @@
-/*
-
-sample module structure
-
-
- */
-
-const header = ["symbol", "route", "close", "change", "changeP", "volume"]
-const headerTitle = ["Symbol", "Cur.Price", "Prev.Close", "CHG", "CHG%", "Volume"]
+const BusInfoHdr = ["symbol", "route", "close", "change", "changeP", "volume"]
+const BusInfoTitle = ["Symbol", "Cur.Price", "Prev.Close", "CHG", "CHG%", "Volume"]
 
 Module.register("MMM-TwBusEta", {
     // define variables used by module, but not in config data
@@ -82,9 +75,9 @@ Module.register("MMM-TwBusEta", {
 
 
 
-    // only called if the module header was configured in module config in config.js
+    // only called if the module BusInfoHdr was configured in module config in config.js
     getHeader: function() {
-        return this.data.header + " Foo Bar";
+        return this.data.BusInfoHdr + " Foo Bar";
     },
 
     // messages received from other modules and the system (NOT from your node helper)
@@ -143,14 +136,14 @@ Module.register("MMM-TwBusEta", {
         var tr = document.getElementById("STOCK_" + hash)
         var ud = ""
         for (j = 1 ; j <= 5 ; j++) {
-            var tdId = header[j] + "_" + hash
+            var tdId = BusInfoHdr[j] + "_" + hash
             var td = document.getElementById(tdId)
-            td.innerHTML = stock[header[j]]
-            td.className = header[j]
-            if (header[j] == "change") {
-                if (stock[header[j]] > 0) {
+            td.innerHTML = stock[BusInfoHdr[j]]
+            td.className = BusInfoHdr[j]
+            if (BusInfoHdr[j] == "change") {
+                if (stock[BusInfoHdr[j]] > 0) {
                     ud = "up"
-                } else if (stock[header[j]] < 0) {
+                } else if (stock[BusInfoHdr[j]] < 0) {
                     ud = " down"
                 }
             }
@@ -222,10 +215,10 @@ Module.register("MMM-TwBusEta", {
         tbl.id = "AVSTOCK_TABLE"
         var thead = document.createElement("thead")
         var tr = document.createElement("tr")
-        for (i in header) {
+        for (i in BusInfoHdr) {
             var td = document.createElement("td")
-            td.innerHTML = headerTitle[i]
-            td.className = header[i]
+            td.innerHTML = BusInfoTitle[i]
+            td.className = BusInfoHdr[i]
             tr.appendChild(td)
         }
         thead.appendChild(tr)
@@ -237,12 +230,12 @@ Module.register("MMM-TwBusEta", {
             var tr = document.createElement("tr")
             tr.className = "stock"
             tr.id = "STOCK_" + hashId
-            for (j in header) {
+            for (j in BusInfoHdr) {
                 var td = document.createElement("td")
                 var stockAlias = stock
                 td.innerHTML = (j != 0) ? "---" : stockAlias
-                td.className = header[j]
-                td.id = header[j] + "_" + hashId
+                td.className = BusInfoHdr[j]
+                td.id = BusInfoHdr[j] + "_" + hashId
                 tr.appendChild(td)
             }
             tbl.appendChild(tr)

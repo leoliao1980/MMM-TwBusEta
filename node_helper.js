@@ -23,19 +23,9 @@ const getAuthorizationHeader = function() {
 */
 
 module.exports = NodeHelper.create({
-
-    init(){
-        console.log("init module helper SampleModule");
-        this.config = null
-        this.pooler = []
-        this.doneFirstPooling = false
-    },
-
     start() {
         console.log('Starting module helper:' +this.name);
         this.config = null
-        this.pooler = []
-        this.doneFirstPooling = false
     },
 
     stop(){
