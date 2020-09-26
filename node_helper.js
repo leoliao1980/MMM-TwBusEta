@@ -1,3 +1,5 @@
+const request = require('request');
+
 var NodeHelper = require("node_helper");
 
 // add require of other javascripot components here
@@ -26,6 +28,8 @@ module.exports = NodeHelper.create({
     start() {
         console.log('Starting module helper:' +this.name);
         this.config = null
+        this.pooler = []
+        this.doneFirstPooling = false
     },
 
     stop(){
