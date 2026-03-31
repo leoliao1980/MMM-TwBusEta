@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MMM-TwBusEta Test</title>
+    <link rel="stylesheet" href="/MMM-TwBusEta.css">
+    <style>
+        /* Mimic MagicMirror dark theme */
+        body {
+            background: #000;
+            color: #ddd;
+            font-family: "Noto Sans TC", "Microsoft JhengHei", "Roboto", sans-serif;
+            font-size: 16px;
+            margin: 0;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 { color: #999; font-size: 14px; font-weight: normal; margin-bottom: 20px; }
+        .dimmed { color: #666; }
+        .small { font-size: 0.85em; }
+        #module-container { min-width: 300px; }
+        .controls { margin-bottom: 24px; }
+        .controls button {
+            background: #222;
+            color: #aaa;
+            border: 1px solid #444;
+            padding: 6px 16px;
+            cursor: pointer;
+            font-size: 13px;
+            margin: 0 4px;
+        }
+        .controls button:hover { background: #333; color: #fff; }
+        .status { color: #555; font-size: 12px; margin-top: 12px; }
+    </style>
+</head>
+<body>
+    <h1>MMM-TwBusEta Test Page</h1>
+    <div class="controls">
+        <button onclick="fetchLive()">Fetch Live Data</button>
+        <button onclick="loadMock()">Load Mock Data</button>
+    </div>
+    <div id="module-container"></div>
+    <div class="status" id="status"></div>
+
+<script>
+// ── MagicMirror framework mock ───────────────────────────────────────────────
+var Log = { log: console.log, error: console.error };
+var Module = {
+    register: function(name, proto) { Module._proto = proto; }
+};
+</script>
+<script src="/MMM-TwBusEta.js"></script>
+<script>
+var mod = Object.create(Module._proto);
+mod.config = Object.assign({}, mod.defaults);
+mod.name = "MMM-TwBusEta";
+mod.data = { header: "MMM-TwBusEta" };
+mod.sendSocketNotification = function() {};
+mod.updateDom = function() { render(); };
+
+// Initialize module state
+mod.start();
+
+function render() {
+    var container = document.getElementById("module-container");
+    container.innerHTML = "";
+    container.appendChild(mod.getDom());
+}
+
+// ── Live data from test_server /api/eta ──────────────────────────────────────
+function fetchLive() {
+    setStatus("Fetching live data...");
+    fetch("/api/eta")
+        .then(function(r) { return r.json(); })
+        .then(function(routes) {
+            if (routes.error) {
+                setStatus("Error: " + routes.error);
+                return;
+            }
+            routes.forEach(function(routeData) {
+                mod.socketNotificationReceived("ETA_DATA", routeData);
+            });
+            setStatus("Live data loaded (" + routes.length + " route(s))");
+        })
+        .catch(function(err) { setStatus("Fetch error: " + err.message); });
+}
+
+// ── Mock data for offline UI testing ─────────────────────────────────────────
+function loadMock() {
+    var mockData = {
+        city: "Taipei",
+        routeName: "254",
+        direction: 0,
+        stops: [
+            { stopSequence: 1, stopName: "中正紀念堂",  estimateTime: 120,  stopStatus: 0 },
+            { stopSequence: 2, stopName: "南門市場",    estimateTime: 300,  stopStatus: 0 },
+            { stopSequence: 3, stopName: "台大醫院",    estimateTime: 55,   stopStatus: 0 },
+            { stopSequence: 4, stopName: "台北車站",    estimateTime: null, stopStatus: 1 },
+            { stopSequence: 5, stopName: "善導寺",      estimateTime: null, stopStatus: 3 },
+            { stopSequence: 6, stopName: "忠孝新生",    estimateTime: 780,  stopStatus: 0 },
+            { stopSequence: 7, stopName: "忠孝復興",    estimateTime: null, stopStatus: 4 },
+        ],
+    };
+    mod.config.routes = [{ city: "Taipei", routeName: "254", direction: 0 }];
+    mod.socketNotificationReceived("ETA_DATA", mockData);
+    setStatus("Mock data loaded");
+}
+
+function setStatus(msg) {
+    document.getElementById("status").textContent = msg;
+}
+
+// Initial render (loading state)
+render();
+</script>
+</body>
+</html>

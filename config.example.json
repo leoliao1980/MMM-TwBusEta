@@ -1,0 +1,8 @@
+{
+    "clientId": "YOUR_TDX_CLIENT_ID",
+    "clientSecret": "YOUR_TDX_CLIENT_SECRET",
+    "routes": [
+        { "city": "Taipei", "routeName": "254", "direction": 0 }
+    ],
+    "language": "Zh_tw"
+}
