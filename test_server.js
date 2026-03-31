@@ -137,7 +137,15 @@ const server = http.createServer(async (req, res) => {
     }
 });
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
+server.on("error", (err) => {
+    if (err.code === "EADDRINUSE") {
+        console.error("Port " + PORT + " is already in use. Try: set PORT=3001 && node test_server.js");
+    } else {
+        console.error("Server error:", err.message);
+    }
+    process.exit(1);
+});
 server.listen(PORT, () => {
     console.log("──────────────────────────────────────────");
     console.log(" MMM-TwBusEta test server running");
