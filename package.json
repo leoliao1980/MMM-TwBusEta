@@ -1,0 +1,24 @@
+{
+  "name": "mmm-twbuseta",
+  "version": "2.0.0",
+  "description": "MagicMirror module for Taiwan bus estimated time of arrival (ETA) using TDX API",
+  "main": "node_helper.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pmmleo/MMM-TwBusEta"
+  },
+  "keywords": [
+    "MagicMirror",
+    "module",
+    "Taiwan",
+    "bus",
+    "ETA",
+    "TDX",
+    "transport"
+  ],
+  "author": "Leo Liao",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.7.0"
+  }
+}

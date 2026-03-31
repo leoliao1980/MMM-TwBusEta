@@ -1,0 +1,89 @@
+.tw-bus-eta {
+    min-width: 250px;
+    font-family: "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+}
+
+.bus-route-section {
+    margin-bottom: 12px;
+}
+
+.bus-route-header {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #ddd;
+    padding-bottom: 4px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    margin-bottom: 4px;
+}
+
+.bus-direction {
+    font-size: 0.75em;
+    font-weight: normal;
+    color: #999;
+    margin-left: 6px;
+}
+
+.bus-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.bus-table tr {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.bus-stop-name {
+    padding: 3px 12px 3px 0;
+    color: #ccc;
+    text-align: left;
+}
+
+.bus-eta {
+    padding: 3px 0;
+    text-align: right;
+    white-space: nowrap;
+    min-width: 70px;
+}
+
+.bus-eta-normal {
+    color: #8bc34a;
+}
+
+.bus-eta-arriving {
+    color: #ff9800;
+    font-weight: bold;
+    animation: blink 1.2s ease-in-out infinite;
+}
+
+.bus-eta-inactive {
+    color: #777;
+    font-style: italic;
+}
+
+.bus-loading {
+    color: #aaa;
+    font-style: italic;
+    padding: 8px 0;
+}
+
+.bus-error {
+    color: #f44336;
+    padding: 8px 0;
+}
+
+.bus-no-data {
+    padding: 4px 0;
+    font-style: italic;
+}
+
+.bus-footer {
+    font-size: 0.7em;
+    text-align: right;
+    padding-top: 6px;
+    color: #666;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}

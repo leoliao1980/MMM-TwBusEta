@@ -1,112 +1,140 @@
-const request = require('request');
-const axios = require('axios');
-const jsSHA = require('jssha');
-var NodeHelper = require("node_helper");
+const axios = require("axios");
+const NodeHelper = require("node_helper");
 
-
-const getAuthorizationHeader = function() {
-    var AppID = '303107a2014d4fb1b6eb8a01306d3ea4';
-    var AppKey = '38SirQ54STAARFAf951GZPWeGv8';
-
-    var GMTString = new Date().toGMTString();
-    var ShaObj = new jsSHA('SHA-1', 'TEXT');
-    ShaObj.setHMACKey(AppKey, 'TEXT');
-    ShaObj.update('x-date: ' + GMTString);
-    var HMAC = ShaObj.getHMAC('B64');
-    var Authorization = 'hmac username=\"' + AppID + '\", algorithm=\"hmac-sha1\", headers=\"x-date\", signature=\"' + HMAC + '\"';
-
-    return { 'Authorization': Authorization, 'X-Date': GMTString};
-}
-
+const TDX_AUTH_URL =
+    "https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token";
+const TDX_BUS_ETA_URL =
+    "https://tdx.transportdata.tw/api/basic/v2/Bus/EstimatedTimeOfArrival/City";
 
 module.exports = NodeHelper.create({
-    start() {
-        console.log('Starting module helper:' +this.name);
-        this.config = null
-        this.pooler = []
-        this.doneFirstPooling = false
+    start: function () {
+        console.log("[MMM-TwBusEta] Node helper started.");
+        this.config = null;
+        this.token = null;
+        this.tokenExpiry = 0;
+        this.timer = null;
     },
 
-    stop(){
-        console.log('Stopping module helper: ' +this.name);
-    },
-
-    socketNotificationReceived: function(noti, payload) {
-        if (noti == "INIT") {
-            this.config = payload
-            console.log("[TWBUSETA] Initialized.")
+    stop: function () {
+        console.log("[MMM-TwBusEta] Node helper stopping.");
+        if (this.timer) {
+            clearTimeout(this.timer);
+            this.timer = null;
         }
-        if (noti == "START") {
-            if (this.pooler.length == 0) {
-                this.prepareScan()
+    },
+
+    socketNotificationReceived: function (noti, payload) {
+        if (noti === "INIT") {
+            this.config = payload;
+            console.log("[MMM-TwBusEta] Config received.");
+        }
+        if (noti === "START") {
+            this.startPolling();
+        }
+    },
+
+    startPolling: function () {
+        if (this.timer) {
+            clearTimeout(this.timer);
+        }
+        this.fetchAllRoutes();
+        this.scheduleNextPoll();
+    },
+
+    scheduleNextPoll: function () {
+        var interval = this.config.updateInterval || 60000;
+        this.timer = setTimeout(() => {
+            this.fetchAllRoutes();
+            this.scheduleNextPoll();
+        }, interval);
+    },
+
+    fetchAllRoutes: async function () {
+        if (!this.config || !this.config.routes) return;
+
+        for (var i = 0; i < this.config.routes.length; i++) {
+            var route = this.config.routes[i];
+            try {
+                await this.fetchRouteEta(route);
+            } catch (err) {
+                console.error("[MMM-TwBusEta] Error fetching route " + route.routeName + ":", err.message);
+                this.sendSocketNotification("ERROR", {
+                    message: "無法取得 " + route.routeName + " 路線資料",
+                });
             }
-            this.startPooling()
         }
     },
-    startPooling: function() {
-        // Since December 2018, Alphavantage changed API quota limit.(500 per day)
-        // So, fixed interval is used. for the first cycle, 15sec is used.
-        // After first cycle, 3min is used for interval to match 500 quota limits.
-        // So, one cycle would be 3min * symbol length;
-        var interval = 0
-        if (this.config.premiumAccount) {
-          interval = this.config.poolInterval
-        } else {
-          interval = (this.doneFirstPooling) ? 180000 : 15000
+
+    getAccessToken: async function () {
+        var now = Date.now();
+        if (this.token && now < this.tokenExpiry) {
+            return this.token;
         }
 
-        if (this.pooler.length > 0) {
-          var symbol = this.pooler.shift()
-          this.callAPI(this.config, symbol, (noti, payload)=>{
-            this.sendSocketNotification(noti, payload)
-          })
-        } else {
-          this.doneFirstPooling = true
-          this.prepareScan()
+        if (!this.config.clientId || !this.config.clientSecret) {
+            return null;
         }
 
-        var timer = setTimeout(()=>{
-          this.startPooling()
-        }, interval)
+        try {
+            var response = await axios.post(
+                TDX_AUTH_URL,
+                new URLSearchParams({
+                    grant_type: "client_credentials",
+                    client_id: this.config.clientId,
+                    client_secret: this.config.clientSecret,
+                }).toString(),
+                { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+            );
+            this.token = response.data.access_token;
+            this.tokenExpiry = now + (response.data.expires_in - 60) * 1000;
+            return this.token;
+        } catch (err) {
+            console.error("[MMM-TwBusEta] Auth failed:", err.message);
+            this.token = null;
+            this.tokenExpiry = 0;
+            throw new Error("TDX 認證失敗，請檢查 clientId / clientSecret");
+        }
     },
-    callAPI: function(cfg, symbol, callback) {
-        var url = ''
-        //https://ptx.transportdata.tw/MOTC/v2/Bus/EstimatedTimeOfArrival/City/Taipei/254?$top=30&$format=JSON
-        url = "https://ptx.transportdata.tw/MOTC/v2/Bus/EstimatedTimeOfArrival/City/"
-        // symbol = city
-        // cfg.apiKey = route
-        url += symbol + "/" + cfg.apiKey + "?$top=1&$format=JSON"
-        //url += symbol + "?$top=30&$format=JSON"
 
-        axios.get(url, {
-            headers: getAuthorizationHeader(),
-        })
-        .then(function(response) {
-            console.log(response.data);
-            var series = response.data
-            var keys = Object.keys(series)
+    fetchRouteEta: async function (route) {
+        var url = TDX_BUS_ETA_URL + "/" + route.city + "/" + encodeURIComponent(route.routeName)
+            + "?$filter=Direction eq " + route.direction
+            + "&$orderby=StopSequence asc"
+            + "&$format=JSON";
 
-            for (k in keys) {
-                var index = keys[k]
-                var item = {
-                    "symbol": symbol,
-                    "date": index,
-                    "stopid": series[k]["StopUID"],
-                    "stopname": series[k]["StopName"][0],
-                    "routename": series[k]["RouteName"][0],
-                    "direction": series[k]["Direction"],
-                    "estimate": series[k]["EstimateTime"],
-                    "stopstatus": series[k]["StopStatus"],
-                    }
-                callback('UPDATE', item)
-            }
+        var headers = {};
+        var token = await this.getAccessToken();
+        if (token) {
+            headers["Authorization"] = "Bearer " + token;
+        }
+
+        var response = await axios.get(url, { headers: headers });
+        var data = response.data;
+
+        if (!Array.isArray(data)) {
+            console.warn("[MMM-TwBusEta] Unexpected response format for " + route.routeName);
+            return;
+        }
+
+        var lang = this.config.language || "Zh_tw";
+        var stops = data.map(function (item) {
+            return {
+                stopSequence: item.StopSequence,
+                stopName: (item.StopName && item.StopName[lang]) || item.StopName.Zh_tw || "",
+                estimateTime: item.EstimateTime != null ? item.EstimateTime : null,
+                stopStatus: item.StopStatus,
+            };
         });
-     },
 
-    prepareScan: function() {
-        for (s in this.config.symbols) {
-            var symbol = this.config.symbols[s]
-            this.pooler.push(symbol)
-        }
+        stops.sort(function (a, b) {
+            return a.stopSequence - b.stopSequence;
+        });
+
+        this.sendSocketNotification("ETA_DATA", {
+            city: route.city,
+            routeName: route.routeName,
+            direction: route.direction,
+            stops: stops,
+        });
     },
 });
